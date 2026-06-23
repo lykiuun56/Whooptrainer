@@ -112,6 +112,9 @@ export default function TodayDashboard() {
   const [goal, setGoal] = useState<TrainingGoal>("general");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [coachQuestion, setCoachQuestion] = useState("Should I train hard today?");
+  const [coachAnswer, setCoachAnswer] = useState("");
+  const [askingCoach, setAskingCoach] = useState(false);
 
   function loadToday(nextGoal = goal) {
     setRefreshing(true);
@@ -140,6 +143,39 @@ export default function TodayDashboard() {
     fetch("/api/whoop/disconnect", { method: "POST" }).finally(() => {
       setData({ connected: false });
     });
+  }
+
+  function askCoach() {
+    const question = coachQuestion.trim();
+
+    if (!question || !data?.today) {
+      return;
+    }
+
+    setAskingCoach(true);
+    setCoachAnswer("");
+
+    fetch("/api/coach/ask", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        question,
+        goal,
+        today: data.today,
+        trends: data.trends ?? [],
+        coach: data.coach ?? null
+      })
+    })
+      .then(async (response) => {
+        const payload = (await response.json()) as { answer?: string; error?: string };
+        setCoachAnswer(payload.answer ?? payload.error ?? "No answer returned.");
+      })
+      .catch(() => {
+        setCoachAnswer("Ask Coach is unavailable right now.");
+      })
+      .finally(() => setAskingCoach(false));
   }
 
   useEffect(() => {
@@ -259,6 +295,30 @@ export default function TodayDashboard() {
           </details>
         </section>
       ) : null}
+
+      <section className="panel">
+        <div>
+          <p className="eyebrow">Ask Coach</p>
+          <h2>Training question</h2>
+        </div>
+        <div className="askCoachForm">
+          <input
+            aria-label="Ask Coach"
+            onChange={(event) => setCoachQuestion(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                askCoach();
+              }
+            }}
+            placeholder="Should I train legs today?"
+            value={coachQuestion}
+          />
+          <button className="secondaryButton" disabled={askingCoach} onClick={askCoach} type="button">
+            {askingCoach ? "Asking" : "Ask"}
+          </button>
+        </div>
+        {coachAnswer ? <p className="coachAnswer">{coachAnswer}</p> : null}
+      </section>
 
       <section className="panel">
         <div>
