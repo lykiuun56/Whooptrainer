@@ -2,6 +2,15 @@
 
 import { useEffect, useState } from "react";
 
+type TrendDay = {
+  date: string;
+  label: string;
+  recovery_score: number | null;
+  sleep_minutes: number | null;
+  strain_score: number | null;
+  hrv_rmssd_milli: number | null;
+};
+
 type TodayResponse = {
   connected: boolean;
   profile?: {
@@ -24,6 +33,7 @@ type TodayResponse = {
       start: string;
     } | null;
   };
+  trends?: TrendDay[];
   error?: string;
 };
 
@@ -40,6 +50,43 @@ function formatValue(value: number | null | undefined, suffix = "") {
   if (value == null) return "--";
 
   return `${Math.round(value)}${suffix}`;
+}
+
+function barHeight(value: number | null, max: number) {
+  if (value == null) return "10%";
+
+  return `${Math.max(10, Math.min(100, (value / max) * 100))}%`;
+}
+
+function TrendRow({
+  label,
+  values,
+  max,
+  suffix = "",
+  accent
+}: {
+  label: string;
+  values: { label: string; value: number | null }[];
+  max: number;
+  suffix?: string;
+  accent: string;
+}) {
+  return (
+    <div className="trendRow">
+      <div className="trendLabel">{label}</div>
+      <div className="trendBars">
+        {values.map((item, index) => (
+          <div className="trendItem" key={`${item.label}-${index}`}>
+            <div className="trendTrack">
+              <div className="trendFill" style={{ height: barHeight(item.value, max), background: accent }} />
+            </div>
+            <span>{item.label}</span>
+            <strong>{item.value == null ? "--" : `${Math.round(item.value)}${suffix}`}</strong>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export default function TodayDashboard() {
@@ -103,6 +150,8 @@ export default function TodayDashboard() {
     { label: "Strain", value: data.today.strain_score?.toFixed(1) ?? "--", tone: "high" }
   ];
 
+  const trends = data.trends ?? [];
+
   return (
     <>
       <section className="statusRow" aria-label="Connection status">
@@ -132,6 +181,34 @@ export default function TodayDashboard() {
           <h2>{data.today.readiness} day</h2>
         </div>
         <p>{data.today.recommendation}</p>
+      </section>
+
+      <section className="panel">
+        <div>
+          <p className="eyebrow">7 Days</p>
+          <h2>Trend</h2>
+        </div>
+        <div className="trendStack">
+          <TrendRow
+            accent="var(--red)"
+            label="Recovery"
+            max={100}
+            suffix="%"
+            values={trends.map((item) => ({ label: item.label, value: item.recovery_score }))}
+          />
+          <TrendRow
+            accent="var(--amber)"
+            label="Sleep"
+            max={540}
+            values={trends.map((item) => ({ label: item.label, value: item.sleep_minutes }))}
+          />
+          <TrendRow
+            accent="var(--blue)"
+            label="Strain"
+            max={21}
+            values={trends.map((item) => ({ label: item.label, value: item.strain_score }))}
+          />
+        </div>
       </section>
 
       <section className="panel">

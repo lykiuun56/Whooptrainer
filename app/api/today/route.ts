@@ -113,6 +113,36 @@ function recommendation(level: string) {
   return "Connect WHOOP and sync fresh data to get a recommendation.";
 }
 
+function dateKey(value: string) {
+  return value.slice(0, 10);
+}
+
+function shortDay(value: string) {
+  return new Intl.DateTimeFormat("en-US", { weekday: "short" }).format(new Date(`${value}T12:00:00Z`));
+}
+
+function buildTrends(cycleRecords: Cycle[] = [], recoveryRecords: Recovery[] = [], sleepRecords: Sleep[] = []) {
+  const recoveryByCycle = new Map(recoveryRecords.map((record) => [record.cycle_id, record]));
+  const sleepByDate = new Map(sleepRecords.map((record) => [dateKey(record.start), record]));
+
+  return [...cycleRecords]
+    .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
+    .map((cycle) => {
+      const date = dateKey(cycle.start);
+      const recovery = recoveryByCycle.get(cycle.id);
+      const sleep = sleepByDate.get(date);
+
+      return {
+        date,
+        label: shortDay(date),
+        recovery_score: recovery?.score?.recovery_score ?? null,
+        sleep_minutes: sleepMinutes(sleep ?? null),
+        strain_score: cycle.score?.strain ?? null,
+        hrv_rmssd_milli: recovery?.score?.hrv_rmssd_milli ?? null
+      };
+    });
+}
+
 export async function GET() {
   const storedSession = await getWhoopSession();
 
@@ -185,6 +215,7 @@ export async function GET() {
       latest_recovery: latestRecovery,
       latest_sleep: latestSleep,
       latest_workout: latestWorkout
-    }
+    },
+    trends: buildTrends(cycles.data.records, recoveries.data.records, sleeps.data.records)
   });
 }

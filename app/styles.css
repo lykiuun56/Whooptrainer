@@ -193,6 +193,68 @@ h2 {
   line-height: 1.55;
 }
 
+.trendStack {
+  display: grid;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.trendRow {
+  display: grid;
+  gap: 8px;
+}
+
+.trendLabel {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.trendBars {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+  align-items: end;
+}
+
+.trendItem {
+  min-width: 0;
+  text-align: center;
+}
+
+.trendTrack {
+  display: flex;
+  height: 68px;
+  align-items: end;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #111a16;
+}
+
+.trendFill {
+  width: 100%;
+  border-radius: 7px 7px 0 0;
+}
+
+.trendItem span,
+.trendItem strong {
+  display: block;
+}
+
+.trendItem span {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.trendItem strong {
+  margin-top: 2px;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-size: 11px;
+}
+
 code {
   display: block;
   width: 100%;
