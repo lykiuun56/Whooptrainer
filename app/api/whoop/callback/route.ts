@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { setWhoopSession } from "../../../../lib/whoop-session";
 
 const tokenUrl = "https://api.prod.whoop.com/oauth/oauth2/token";
 
@@ -51,16 +52,17 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "WHOOP token exchange failed", detail: payload }, { status: response.status });
   }
 
-  return NextResponse.json({
-    ok: true,
-    message: "WHOOP authorization succeeded. Token storage is the next implementation step.",
-    state,
-    token_preview: {
-      token_type: payload.token_type,
-      expires_in: payload.expires_in,
-      scope: payload.scope,
-      has_access_token: Boolean(payload.access_token),
-      has_refresh_token: Boolean(payload.refresh_token)
-    }
+  await setWhoopSession({
+    access_token: payload.access_token,
+    refresh_token: payload.refresh_token,
+    expires_at: Date.now() + payload.expires_in * 1000,
+    token_type: payload.token_type,
+    scope: payload.scope
   });
+
+  const redirectUrl = new URL("/", request.nextUrl.origin);
+  redirectUrl.searchParams.set("connected", "1");
+  redirectUrl.searchParams.set("state", state ?? "");
+
+  return NextResponse.redirect(redirectUrl);
 }
