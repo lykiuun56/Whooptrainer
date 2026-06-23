@@ -45,8 +45,11 @@ function formatValue(value: number | null | undefined, suffix = "") {
 export default function TodayDashboard() {
   const [data, setData] = useState<TodayResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
+  function loadToday() {
+    setRefreshing(true);
+
     fetch("/api/today")
       .then(async (response) => {
         const payload = (await response.json()) as TodayResponse;
@@ -55,7 +58,20 @@ export default function TodayDashboard() {
       .catch(() => {
         setData({ connected: false, error: "Unable to load WHOOP data" });
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        setLoading(false);
+        setRefreshing(false);
+      });
+  }
+
+  function disconnect() {
+    fetch("/api/whoop/disconnect", { method: "POST" }).finally(() => {
+      setData({ connected: false });
+    });
+  }
+
+  useEffect(() => {
+    loadToday();
   }, []);
 
   if (loading) {
@@ -72,7 +88,10 @@ export default function TodayDashboard() {
       <section className="panel">
         <p className="eyebrow">Setup</p>
         <h2>Connect WHOOP</h2>
-        <p>Authorize WHOOP to replace the sample metrics with your real recovery, sleep, and strain data.</p>
+        <p>Authorize WHOOP to load your real recovery, sleep, strain, and training data.</p>
+        <a className="primaryButton compactButton" href="/api/whoop/connect">
+          Connect WHOOP
+        </a>
       </section>
     );
   }
@@ -86,6 +105,18 @@ export default function TodayDashboard() {
 
   return (
     <>
+      <section className="statusRow" aria-label="Connection status">
+        <span>WHOOP connected</span>
+        <div className="buttonRow">
+          <button className="secondaryButton" onClick={loadToday} type="button">
+            {refreshing ? "Refreshing" : "Refresh"}
+          </button>
+          <button className="ghostButton" onClick={disconnect} type="button">
+            Disconnect
+          </button>
+        </div>
+      </section>
+
       <section className="metricGrid" aria-label="Today WHOOP metrics">
         {metrics.map((metric) => (
           <article className={`metricCard ${metric.tone}`} key={metric.label}>
