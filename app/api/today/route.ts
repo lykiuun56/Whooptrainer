@@ -72,6 +72,8 @@ type Workout = {
   };
 };
 
+type TrainingGoal = "general" | "strength" | "hypertrophy" | "cardio" | "recovery";
+
 function isoDaysAgo(days: number) {
   const date = new Date();
   date.setDate(date.getDate() - days);
@@ -178,6 +180,7 @@ function trendDirection(values: (number | null)[]) {
 
 function coachPlan({
   level,
+  goal,
   recoveryScore,
   sleep,
   strain,
@@ -186,6 +189,7 @@ function coachPlan({
   trends
 }: {
   level: string;
+  goal: TrainingGoal;
   recoveryScore?: number;
   sleep: Sleep | null;
   strain?: number;
@@ -201,8 +205,16 @@ function coachPlan({
   const reasons: string[] = [];
   const avoid: string[] = [];
   const focus: string[] = [];
+  const goalLabel = {
+    general: "general training",
+    strength: "strength",
+    hypertrophy: "hypertrophy",
+    cardio: "cardio",
+    recovery: "recovery"
+  }[goal];
 
   if (recoveryScore != null) reasons.push(`Recovery is ${Math.round(recoveryScore)}%.`);
+  reasons.push(`Goal is ${goalLabel}.`);
   if (sleepTime != null) reasons.push(`Sleep was ${Math.floor(sleepTime / 60)}h ${sleepTime % 60}m.`);
   if (hrv != null) reasons.push(`HRV is ${Math.round(hrv)} ms.`);
   if (rhr != null) reasons.push(`RHR is ${Math.round(rhr)} bpm.`);
@@ -232,13 +244,44 @@ function coachPlan({
     focus.push("keep sleep timing consistent");
   }
 
+  if (goal === "strength") {
+    focus.push("heavy technique work", "long rests");
+    avoid.push("fatiguing finishers before main lifts");
+  }
+
+  if (goal === "hypertrophy") {
+    focus.push("controlled volume", "clean reps close to target muscles");
+    avoid.push("ego lifting");
+  }
+
+  if (goal === "cardio") {
+    focus.push("aerobic quality", "smooth pacing");
+    avoid.push("turning easy work into a race");
+  }
+
+  if (goal === "recovery") {
+    focus.push("low stress movement", "mobility");
+    avoid.push("chasing strain");
+  }
+
   if (level === "Push") {
-    focus.push("main lift progression", "hard but clean conditioning");
+    if (goal === "strength") {
+      focus.push("top set plus back-off sets");
+    } else if (goal === "hypertrophy") {
+      focus.push("progressive overload", "moderate-high volume");
+    } else if (goal === "cardio") {
+      focus.push("threshold or interval work");
+    } else {
+      focus.push("main lift progression", "hard but clean conditioning");
+    }
 
     return {
       title: "Push with intent",
       intensity: "RPE 8-9",
-      plan: "Good day for a harder session. Prioritize your main lift or key sport work, then stop before form drops.",
+      plan:
+        goal === "recovery"
+          ? "You have room to train, but your selected goal is recovery. Keep movement easy and bank the readiness."
+          : "Good day for a harder session. Prioritize the most important work for your goal, then stop before form drops.",
       focus,
       avoid: avoid.length ? avoid : ["junk volume after the main work"],
       reasons
@@ -246,12 +289,23 @@ function coachPlan({
   }
 
   if (level === "Build") {
-    focus.push("moderate strength work", "Zone 2 or accessories");
+    if (goal === "strength") {
+      focus.push("submaximal compounds", "bar speed");
+    } else if (goal === "hypertrophy") {
+      focus.push("quality working sets", "stable technique");
+    } else if (goal === "cardio") {
+      focus.push("Zone 2 base work");
+    } else {
+      focus.push("moderate strength work", "Zone 2 or accessories");
+    }
 
     return {
       title: "Build, do not test",
       intensity: "RPE 7-8",
-      plan: "Train normally, but keep the session controlled. Add quality reps rather than chasing a max.",
+      plan:
+        goal === "recovery"
+          ? "Use today to restore. Easy movement, mobility, and a short walk fit better than structured intensity."
+          : "Train normally, but keep the session controlled. Add quality reps rather than chasing a max.",
       focus,
       avoid: avoid.length ? avoid : ["one-rep max attempts", "grinding sets"],
       reasons
@@ -259,7 +313,15 @@ function coachPlan({
   }
 
   if (level === "Light") {
-    focus.push("technique", "mobility", "easy aerobic work");
+    if (goal === "strength") {
+      focus.push("technique singles", "light speed work");
+    } else if (goal === "hypertrophy") {
+      focus.push("light pump work", "machines or accessories");
+    } else if (goal === "cardio") {
+      focus.push("easy Zone 2");
+    } else {
+      focus.push("technique", "mobility", "easy aerobic work");
+    }
 
     return {
       title: "Light day",
@@ -294,8 +356,16 @@ function coachPlan({
   };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const storedSession = await getWhoopSession();
+  const goalParam = new URL(request.url).searchParams.get("goal");
+  const goal: TrainingGoal =
+    goalParam === "strength" ||
+    goalParam === "hypertrophy" ||
+    goalParam === "cardio" ||
+    goalParam === "recovery"
+      ? goalParam
+      : "general";
 
   if (!storedSession) {
     return NextResponse.json(
@@ -342,6 +412,7 @@ export async function GET() {
   const trends = buildTrends(cycles.data.records, recoveries.data.records, sleeps.data.records);
   const coach = coachPlan({
     level,
+    goal,
     recoveryScore,
     sleep: latestSleep,
     strain: latestCycle?.score?.strain,

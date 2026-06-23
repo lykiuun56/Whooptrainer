@@ -139,6 +139,35 @@ h2 {
   color: var(--muted);
 }
 
+.goalPanel {
+  margin-bottom: 12px;
+}
+
+.goalControl {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.goalButton {
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 8px;
+  background: var(--panel);
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.goalButton.active {
+  border-color: var(--green);
+  background: #173323;
+  color: var(--green);
+}
+
 .metricGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

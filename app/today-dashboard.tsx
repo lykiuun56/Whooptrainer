@@ -11,6 +11,8 @@ type TrendDay = {
   hrv_rmssd_milli: number | null;
 };
 
+type TrainingGoal = "general" | "strength" | "hypertrophy" | "cardio" | "recovery";
+
 type TodayResponse = {
   connected: boolean;
   profile?: {
@@ -44,6 +46,14 @@ type TodayResponse = {
   trends?: TrendDay[];
   error?: string;
 };
+
+const goals: { value: TrainingGoal; label: string }[] = [
+  { value: "general", label: "General" },
+  { value: "strength", label: "Strength" },
+  { value: "hypertrophy", label: "Muscle" },
+  { value: "cardio", label: "Cardio" },
+  { value: "recovery", label: "Recovery" }
+];
 
 function formatSleep(minutes: number | null | undefined) {
   if (minutes == null) return "--";
@@ -99,13 +109,14 @@ function TrendRow({
 
 export default function TodayDashboard() {
   const [data, setData] = useState<TodayResponse | null>(null);
+  const [goal, setGoal] = useState<TrainingGoal>("general");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  function loadToday() {
+  function loadToday(nextGoal = goal) {
     setRefreshing(true);
 
-    fetch("/api/today")
+    fetch(`/api/today?goal=${nextGoal}`)
       .then(async (response) => {
         const payload = (await response.json()) as TodayResponse;
         setData(payload);
@@ -119,6 +130,12 @@ export default function TodayDashboard() {
       });
   }
 
+  function changeGoal(nextGoal: TrainingGoal) {
+    setGoal(nextGoal);
+    localStorage.setItem("trainingGoal", nextGoal);
+    loadToday(nextGoal);
+  }
+
   function disconnect() {
     fetch("/api/whoop/disconnect", { method: "POST" }).finally(() => {
       setData({ connected: false });
@@ -126,7 +143,11 @@ export default function TodayDashboard() {
   }
 
   useEffect(() => {
-    loadToday();
+    const storedGoal = localStorage.getItem("trainingGoal");
+    const initialGoal = goals.some((item) => item.value === storedGoal) ? (storedGoal as TrainingGoal) : "general";
+
+    setGoal(initialGoal);
+    loadToday(initialGoal);
   }, []);
 
   if (loading) {
@@ -165,12 +186,29 @@ export default function TodayDashboard() {
       <section className="statusRow" aria-label="Connection status">
         <span>WHOOP connected</span>
         <div className="buttonRow">
-          <button className="secondaryButton" onClick={loadToday} type="button">
+          <button className="secondaryButton" onClick={() => loadToday()} type="button">
             {refreshing ? "Refreshing" : "Refresh"}
           </button>
           <button className="ghostButton" onClick={disconnect} type="button">
             Disconnect
           </button>
+        </div>
+      </section>
+
+      <section className="goalPanel" aria-label="Training goal">
+        <p className="eyebrow">Goal</p>
+        <div className="goalControl">
+          {goals.map((item) => (
+            <button
+              aria-pressed={goal === item.value}
+              className={goal === item.value ? "goalButton active" : "goalButton"}
+              key={item.value}
+              onClick={() => changeGoal(item.value)}
+              type="button"
+            >
+              {item.label}
+            </button>
+          ))}
         </div>
       </section>
 
