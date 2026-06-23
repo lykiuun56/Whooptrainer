@@ -10,7 +10,8 @@ export async function GET() {
   const clientId = process.env.WHOOP_CLIENT_ID;
   const redirectUri = process.env.WHOOP_REDIRECT_URI;
   const scopes =
-    process.env.WHOOP_SCOPES ?? "read:profile read:recovery read:cycles read:sleep read:workout offline";
+    process.env.WHOOP_SCOPES ??
+    "read:profile read:recovery read:cycles read:sleep read:workout read:body_measurement offline";
 
   if (!clientId || !redirectUri) {
     return NextResponse.json(

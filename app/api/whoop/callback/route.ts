@@ -29,18 +29,20 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  const body = new URLSearchParams({
+    grant_type: "authorization_code",
+    code,
+    client_id: clientId,
+    client_secret: clientSecret,
+    redirect_uri: redirectUri
+  });
+
   const response = await fetch(tokenUrl, {
     method: "POST",
     headers: {
-      "content-type": "application/json"
+      "content-type": "application/x-www-form-urlencoded"
     },
-    body: JSON.stringify({
-      grant_type: "authorization_code",
-      code,
-      client_id: clientId,
-      client_secret: clientSecret,
-      redirect_uri: redirectUri
-    })
+    body
   });
 
   const payload = await response.json();
