@@ -100,19 +100,19 @@ function sleepMinutes(sleep: Sleep | null) {
 }
 
 function readiness(recovery?: number) {
-  if (recovery == null) return "Unknown";
-  if (recovery >= 67) return "Push";
-  if (recovery >= 34) return "Build";
-  if (recovery >= 20) return "Light";
-  return "Rest";
+  if (recovery == null) return "未知";
+  if (recovery >= 67) return "推进";
+  if (recovery >= 34) return "建设";
+  if (recovery >= 20) return "轻量";
+  return "恢复";
 }
 
 function recommendation(level: string) {
-  if (level === "Push") return "Recovery is strong. This is a good day for harder training if you feel ready.";
-  if (level === "Build") return "Train normally, but keep an eye on sleep and how your warmup feels.";
-  if (level === "Light") return "Keep intensity controlled. Zone 2, mobility, or technique work fits today.";
-  if (level === "Rest") return "Prioritize recovery, sleep, hydration, and low-stress movement.";
-  return "Connect WHOOP and sync fresh data to get a recommendation.";
+  if (level === "推进") return "恢复状态不错。如果热身感觉也好，今天可以安排较高质量训练。";
+  if (level === "建设") return "可以正常训练，但强度别硬冲，观察睡眠和热身反馈。";
+  if (level === "轻量") return "控制强度。Zone 2、有氧基础、技术练习或灵活性训练更适合今天。";
+  if (level === "恢复") return "今天优先恢复、睡眠、补水和低压力活动。";
+  return "连接 WHOOP 并同步数据后，我会给出训练建议。";
 }
 
 function dateKey(value: string) {
@@ -206,150 +206,150 @@ function coachPlan({
   const avoid: string[] = [];
   const focus: string[] = [];
   const goalLabel = {
-    general: "general training",
-    strength: "strength",
-    hypertrophy: "hypertrophy",
-    cardio: "cardio",
-    recovery: "recovery"
+    general: "综合训练",
+    strength: "力量",
+    hypertrophy: "增肌",
+    cardio: "有氧",
+    recovery: "恢复"
   }[goal];
 
-  if (recoveryScore != null) reasons.push(`Recovery is ${Math.round(recoveryScore)}%.`);
-  reasons.push(`Goal is ${goalLabel}.`);
-  if (sleepTime != null) reasons.push(`Sleep was ${Math.floor(sleepTime / 60)}h ${sleepTime % 60}m.`);
-  if (hrv != null) reasons.push(`HRV is ${Math.round(hrv)} ms.`);
-  if (rhr != null) reasons.push(`RHR is ${Math.round(rhr)} bpm.`);
-  if (strain != null) reasons.push(`Current cycle strain is ${strain.toFixed(1)}.`);
+  if (recoveryScore != null) reasons.push(`今日恢复 ${Math.round(recoveryScore)}%。`);
+  reasons.push(`当前目标是${goalLabel}。`);
+  if (sleepTime != null) reasons.push(`睡眠 ${Math.floor(sleepTime / 60)}h ${sleepTime % 60}m。`);
+  if (hrv != null) reasons.push(`HRV ${Math.round(hrv)} ms。`);
+  if (rhr != null) reasons.push(`静息心率 ${Math.round(rhr)} bpm。`);
+  if (strain != null) reasons.push(`当前 cycle strain ${strain.toFixed(1)}。`);
 
   if (recoveryDirection === "down") {
-    reasons.push("Recovery is trending down over the last week.");
-    avoid.push("max effort sets");
+    reasons.push("最近一周恢复趋势在下降。");
+    avoid.push("极限组");
   }
 
   if (sleepTime != null && sleepTime < 420) {
-    reasons.push("Sleep was under 7 hours.");
-    avoid.push("high-volume finishers");
+    reasons.push("睡眠少于 7 小时。");
+    avoid.push("高容量收尾");
   }
 
   if (sleepPerformance != null && sleepPerformance < 70) {
-    reasons.push(`Sleep performance is ${Math.round(sleepPerformance)}%.`);
-    avoid.push("late intense cardio");
+    reasons.push(`睡眠表现 ${Math.round(sleepPerformance)}%。`);
+    avoid.push("太晚做高强度有氧");
   }
 
   if (strainAverage != null && strainAverage >= 12) {
-    reasons.push("Recent strain load is elevated.");
-    avoid.push("stacking another high-strain day");
+    reasons.push("最近 strain 负荷偏高。");
+    avoid.push("连续叠加高 strain 日");
   }
 
   if (sleepAverage != null && sleepAverage >= 420) {
-    focus.push("keep sleep timing consistent");
+    focus.push("保持稳定睡眠时间");
   }
 
   if (goal === "strength") {
-    focus.push("heavy technique work", "long rests");
-    avoid.push("fatiguing finishers before main lifts");
+    focus.push("重训技术质量", "组间充分休息");
+    avoid.push("主项前做疲劳收尾");
   }
 
   if (goal === "hypertrophy") {
-    focus.push("controlled volume", "clean reps close to target muscles");
-    avoid.push("ego lifting");
+    focus.push("可控容量", "目标肌肉发力清楚");
+    avoid.push("为了重量牺牲动作");
   }
 
   if (goal === "cardio") {
-    focus.push("aerobic quality", "smooth pacing");
-    avoid.push("turning easy work into a race");
+    focus.push("有氧质量", "平稳配速");
+    avoid.push("把轻松有氧做成比赛");
   }
 
   if (goal === "recovery") {
-    focus.push("low stress movement", "mobility");
-    avoid.push("chasing strain");
+    focus.push("低压力活动", "灵活性");
+    avoid.push("为了刷 strain 而训练");
   }
 
-  if (level === "Push") {
+  if (level === "推进") {
     if (goal === "strength") {
-      focus.push("top set plus back-off sets");
+      focus.push("一个高质量 top set 加回退组");
     } else if (goal === "hypertrophy") {
-      focus.push("progressive overload", "moderate-high volume");
+      focus.push("渐进超负荷", "中高容量");
     } else if (goal === "cardio") {
-      focus.push("threshold or interval work");
+      focus.push("阈值或间歇训练");
     } else {
-      focus.push("main lift progression", "hard but clean conditioning");
+      focus.push("主项递进", "有质量的体能训练");
     }
 
     return {
-      title: "Push with intent",
+      title: "有目的地推进",
       intensity: "RPE 8-9",
       plan:
         goal === "recovery"
-          ? "You have room to train, but your selected goal is recovery. Keep movement easy and bank the readiness."
-          : "Good day for a harder session. Prioritize the most important work for your goal, then stop before form drops.",
+          ? "身体有训练空间，但你选择了恢复目标。今天保持轻松，把好状态存下来。"
+          : "今天适合较硬的训练。优先做最重要的主项，在动作质量下降前收手。",
       focus,
-      avoid: avoid.length ? avoid : ["junk volume after the main work"],
+      avoid: avoid.length ? avoid : ["主项后堆垃圾容量"],
       reasons
     };
   }
 
-  if (level === "Build") {
+  if (level === "建设") {
     if (goal === "strength") {
-      focus.push("submaximal compounds", "bar speed");
+      focus.push("次极限复合动作", "杠速");
     } else if (goal === "hypertrophy") {
-      focus.push("quality working sets", "stable technique");
+      focus.push("高质量工作组", "稳定技术");
     } else if (goal === "cardio") {
-      focus.push("Zone 2 base work");
+      focus.push("Zone 2 基础有氧");
     } else {
-      focus.push("moderate strength work", "Zone 2 or accessories");
+      focus.push("中等强度力量", "Zone 2 或辅助动作");
     }
 
     return {
-      title: "Build, do not test",
+      title: "建设，不测试极限",
       intensity: "RPE 7-8",
       plan:
         goal === "recovery"
-          ? "Use today to restore. Easy movement, mobility, and a short walk fit better than structured intensity."
-          : "Train normally, but keep the session controlled. Add quality reps rather than chasing a max.",
+          ? "今天用来恢复。轻松活动、灵活性和短距离散步，比结构化强度更合适。"
+          : "可以正常训练，但保持可控。追求高质量次数，不追极限。",
       focus,
-      avoid: avoid.length ? avoid : ["one-rep max attempts", "grinding sets"],
+      avoid: avoid.length ? avoid : ["1RM 尝试", "硬磨组"],
       reasons
     };
   }
 
-  if (level === "Light") {
+  if (level === "轻量") {
     if (goal === "strength") {
-      focus.push("technique singles", "light speed work");
+      focus.push("技术单次", "轻重量速度练习");
     } else if (goal === "hypertrophy") {
-      focus.push("light pump work", "machines or accessories");
+      focus.push("轻泵感训练", "器械或辅助动作");
     } else if (goal === "cardio") {
-      focus.push("easy Zone 2");
+      focus.push("轻松 Zone 2");
     } else {
-      focus.push("technique", "mobility", "easy aerobic work");
+      focus.push("技术", "灵活性", "轻松有氧");
     }
 
     return {
-      title: "Light day",
+      title: "轻量日",
       intensity: "RPE 5-6",
-      plan: "Keep training easy and leave the gym feeling better than when you walked in.",
+      plan: "今天把训练做轻，目标是离开时比开始时状态更好。",
       focus,
-      avoid: avoid.length ? avoid : ["heavy compounds", "failure sets"],
+      avoid: avoid.length ? avoid : ["重型复合动作", "力竭组"],
       reasons
     };
   }
 
-  if (level === "Rest") {
-    focus.push("walking", "mobility", "sleep and hydration");
+  if (level === "恢复") {
+    focus.push("散步", "灵活性", "睡眠和补水");
 
     return {
-      title: "Recover first",
-      intensity: "Very easy",
-      plan: "Treat today as recovery. If you move, keep it low stress and short.",
+      title: "先恢复",
+      intensity: "非常轻松",
+      plan: "今天当作恢复日。如果要动，保持低压力、短时间。",
       focus,
-      avoid: avoid.length ? avoid : ["hard training", "high strain targets"],
+      avoid: avoid.length ? avoid : ["高强度训练", "高 strain 目标"],
       reasons
     };
   }
 
   return {
-    title: "Connect more data",
-    intensity: "Unknown",
-    plan: "Sync fresh WHOOP data to generate a coaching recommendation.",
+    title: "需要更多数据",
+    intensity: "未知",
+    plan: "同步新的 WHOOP 数据后，我会生成训练建议。",
     focus,
     avoid,
     reasons

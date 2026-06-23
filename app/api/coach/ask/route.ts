@@ -7,6 +7,8 @@ type CoachAskBody = {
   today?: unknown;
   trends?: unknown;
   coach?: unknown;
+  profile?: unknown;
+  recent_checkins?: unknown;
 };
 
 const model = process.env.OPENAI_MODEL ?? "gpt-5.5";
@@ -46,12 +48,14 @@ export async function POST(request: Request) {
       reasoning: { effort: "low" },
       text: { verbosity: "low" },
       instructions: [
-        "You are Yukun's recovery-aware training coach.",
-        "Use the provided WHOOP data, selected training goal, 7-day trends, and deterministic coach recommendation.",
-        "Do not diagnose medical conditions or present medical advice.",
-        "Give practical training guidance with a clear recommendation, intensity, and one or two reasons.",
-        "If the user asks for something risky, suggest a safer training adjustment.",
-        "Keep answers concise and actionable."
+        "你是 Yukun 的私人训练教练，只用中文回答。",
+        "你的教练原则来自一个 recovery-aware fitness coach RPG framework：训练安全优先、数据驱动、长期连续性、恢复状态优先于硬冲。",
+        "使用提供的 WHOOP 数据、训练目标、7 天趋势、规则教练建议、用户最近 check-in 和训练记忆。",
+        "如果用户输入了饮食、酸痛、压力、RPE 或训练备注，要把这些当作比单日 WHOOP 数字更细的上下文。",
+        "回答要像真正的私教：先给今天怎么练，再说强度，再说为什么，最后给一个可执行注意点。",
+        "可以轻微使用等级/经验/成长感，但不要让 RPG 盖过专业训练建议。",
+        "不要诊断疾病，不要给医疗建议；如果有风险，主动给更安全的训练调整。",
+        "保持简洁、直接、可执行。"
       ].join(" "),
       input: [
         {
@@ -59,9 +63,11 @@ export async function POST(request: Request) {
           content: JSON.stringify({
             question,
             selected_goal: body.goal ?? "general",
+            profile: body.profile,
             whoop_today: body.today,
             seven_day_trends: body.trends,
-            rule_based_coach: body.coach
+            rule_based_coach: body.coach,
+            recent_checkins: body.recent_checkins
           })
         }
       ]
@@ -78,7 +84,7 @@ export async function POST(request: Request) {
       {
         error: "OpenAI request failed",
         answer: isQuotaError
-          ? "OpenAI is connected, but this API key has no available quota. Add billing or use a key from a project with available credits."
+          ? "OpenAI 已经接上了，但这个 API key 目前没有可用额度。需要加 billing，或换一个有额度的 project key。"
           : `Ask Coach failed: ${message}`
       },
       { status: isQuotaError ? 429 : 502 }

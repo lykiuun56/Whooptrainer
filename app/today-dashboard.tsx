@@ -13,6 +13,17 @@ type TrendDay = {
 
 type TrainingGoal = "general" | "strength" | "hypertrophy" | "cardio" | "recovery";
 
+type CheckinEntry = {
+  id: string;
+  date: string;
+  trainingIntent: string;
+  food: string;
+  soreness: string;
+  mood: string;
+  notes: string;
+  rpe: string;
+};
+
 type TodayResponse = {
   connected: boolean;
   profile?: {
@@ -48,12 +59,21 @@ type TodayResponse = {
 };
 
 const goals: { value: TrainingGoal; label: string }[] = [
-  { value: "general", label: "General" },
-  { value: "strength", label: "Strength" },
-  { value: "hypertrophy", label: "Muscle" },
-  { value: "cardio", label: "Cardio" },
-  { value: "recovery", label: "Recovery" }
+  { value: "general", label: "综合" },
+  { value: "strength", label: "力量" },
+  { value: "hypertrophy", label: "增肌" },
+  { value: "cardio", label: "有氧" },
+  { value: "recovery", label: "恢复" }
 ];
+
+const emptyCheckin = {
+  trainingIntent: "",
+  food: "",
+  soreness: "",
+  mood: "",
+  notes: "",
+  rpe: ""
+};
 
 function formatSleep(minutes: number | null | undefined) {
   if (minutes == null) return "--";
@@ -112,9 +132,11 @@ export default function TodayDashboard() {
   const [goal, setGoal] = useState<TrainingGoal>("general");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [coachQuestion, setCoachQuestion] = useState("Should I train hard today?");
+  const [coachQuestion, setCoachQuestion] = useState("今天我应该怎么练？");
   const [coachAnswer, setCoachAnswer] = useState("");
   const [askingCoach, setAskingCoach] = useState(false);
+  const [checkin, setCheckin] = useState(emptyCheckin);
+  const [checkins, setCheckins] = useState<CheckinEntry[]>([]);
 
   function loadToday(nextGoal = goal) {
     setRefreshing(true);
@@ -165,7 +187,9 @@ export default function TodayDashboard() {
         goal,
         today: data.today,
         trends: data.trends ?? [],
-        coach: data.coach ?? null
+        coach: data.coach ?? null,
+        profile: data.profile ?? null,
+        recent_checkins: checkins.slice(0, 10)
       })
     })
       .then(async (response) => {
@@ -173,14 +197,55 @@ export default function TodayDashboard() {
         setCoachAnswer(payload.answer ?? payload.error ?? "No answer returned.");
       })
       .catch(() => {
-        setCoachAnswer("Ask Coach is unavailable right now.");
+        setCoachAnswer("Coach 现在暂时不可用，稍后再试。");
       })
       .finally(() => setAskingCoach(false));
+  }
+
+  function updateCheckin(field: keyof typeof emptyCheckin, value: string) {
+    setCheckin((current) => ({ ...current, [field]: value }));
+  }
+
+  function saveCheckin() {
+    const hasContent = Object.values(checkin).some((value) => value.trim());
+
+    if (!hasContent) {
+      return;
+    }
+
+    const entry: CheckinEntry = {
+      id: crypto.randomUUID(),
+      date: new Date().toISOString(),
+      trainingIntent: checkin.trainingIntent.trim(),
+      food: checkin.food.trim(),
+      soreness: checkin.soreness.trim(),
+      mood: checkin.mood.trim(),
+      notes: checkin.notes.trim(),
+      rpe: checkin.rpe.trim()
+    };
+    const nextCheckins = [entry, ...checkins].slice(0, 30);
+
+    setCheckins(nextCheckins);
+    localStorage.setItem("coachCheckins", JSON.stringify(nextCheckins));
+    setCheckin(emptyCheckin);
   }
 
   useEffect(() => {
     const storedGoal = localStorage.getItem("trainingGoal");
     const initialGoal = goals.some((item) => item.value === storedGoal) ? (storedGoal as TrainingGoal) : "general";
+    const storedCheckins = localStorage.getItem("coachCheckins");
+
+    if (storedCheckins) {
+      try {
+        const parsed = JSON.parse(storedCheckins) as CheckinEntry[];
+
+        if (Array.isArray(parsed)) {
+          setCheckins(parsed.slice(0, 30));
+        }
+      } catch {
+        localStorage.removeItem("coachCheckins");
+      }
+    }
 
     setGoal(initialGoal);
     loadToday(initialGoal);
@@ -190,7 +255,7 @@ export default function TodayDashboard() {
     return (
       <section className="panel">
         <p className="eyebrow">Syncing</p>
-        <h2>Loading WHOOP data</h2>
+        <h2>正在读取 WHOOP 数据</h2>
       </section>
     );
   }
@@ -199,8 +264,8 @@ export default function TodayDashboard() {
     return (
       <section className="panel">
         <p className="eyebrow">Setup</p>
-        <h2>Connect WHOOP</h2>
-        <p>Authorize WHOOP to load your real recovery, sleep, strain, and training data.</p>
+        <h2>连接 WHOOP</h2>
+        <p>授权 WHOOP 后，我才能读取你的恢复、睡眠、strain 和训练数据。</p>
         <a className="primaryButton compactButton" href="/api/whoop/connect">
           Connect WHOOP
         </a>
@@ -209,8 +274,8 @@ export default function TodayDashboard() {
   }
 
   const metrics = [
-    { label: "Recovery", value: formatValue(data.today.recovery_score, "%"), tone: "low" },
-    { label: "Sleep", value: formatSleep(data.today.sleep_minutes), tone: "mid" },
+    { label: "恢复", value: formatValue(data.today.recovery_score, "%"), tone: "low" },
+    { label: "睡眠", value: formatSleep(data.today.sleep_minutes), tone: "mid" },
     { label: "HRV", value: formatValue(data.today.hrv_rmssd_milli, " ms"), tone: "mid" },
     { label: "Strain", value: data.today.strain_score?.toFixed(1) ?? "--", tone: "high" }
   ];
@@ -220,19 +285,19 @@ export default function TodayDashboard() {
   return (
     <>
       <section className="statusRow" aria-label="Connection status">
-        <span>WHOOP connected</span>
+        <span>WHOOP 已连接</span>
         <div className="buttonRow">
           <button className="secondaryButton" onClick={() => loadToday()} type="button">
-            {refreshing ? "Refreshing" : "Refresh"}
+            {refreshing ? "刷新中" : "刷新"}
           </button>
           <button className="ghostButton" onClick={disconnect} type="button">
-            Disconnect
+            断开
           </button>
         </div>
       </section>
 
       <section className="goalPanel" aria-label="Training goal">
-        <p className="eyebrow">Goal</p>
+        <p className="eyebrow">目标</p>
         <div className="goalControl">
           {goals.map((item) => (
             <button
@@ -261,7 +326,7 @@ export default function TodayDashboard() {
         <section className="panel coachPanel">
           <div className="coachHeader">
             <div>
-              <p className="eyebrow">Coach</p>
+              <p className="eyebrow">教练</p>
               <h2>{data.coach.title}</h2>
             </div>
             <span>{data.coach.intensity}</span>
@@ -269,7 +334,7 @@ export default function TodayDashboard() {
           <p>{data.coach.plan}</p>
           <div className="coachGrid">
             <div>
-              <span>Focus</span>
+              <span>重点</span>
               <ul>
                 {data.coach.focus.map((item) => (
                   <li key={item}>{item}</li>
@@ -277,7 +342,7 @@ export default function TodayDashboard() {
               </ul>
             </div>
             <div>
-              <span>Avoid</span>
+              <span>避免</span>
               <ul>
                 {data.coach.avoid.map((item) => (
                   <li key={item}>{item}</li>
@@ -286,7 +351,7 @@ export default function TodayDashboard() {
             </div>
           </div>
           <details className="coachReasons">
-            <summary>Why this plan</summary>
+            <summary>为什么这样安排</summary>
             <ul>
               {data.coach.reasons.map((reason) => (
                 <li key={reason}>{reason}</li>
@@ -296,10 +361,83 @@ export default function TodayDashboard() {
         </section>
       ) : null}
 
+      <section className="panel memoryPanel">
+        <div>
+          <p className="eyebrow">教练记忆</p>
+          <h2>今天的输入</h2>
+        </div>
+        <div className="checkinGrid">
+          <label>
+            今天想练什么
+            <input
+              onChange={(event) => updateCheckin("trainingIntent", event.target.value)}
+              placeholder="比如：胸背、腿、有氧、休息"
+              value={checkin.trainingIntent}
+            />
+          </label>
+          <label>
+            饮食/补剂
+            <input
+              onChange={(event) => updateCheckin("food", event.target.value)}
+              placeholder="比如：早餐、咖啡、蛋白、酒精"
+              value={checkin.food}
+            />
+          </label>
+          <label>
+            酸痛/不舒服
+            <input
+              onChange={(event) => updateCheckin("soreness", event.target.value)}
+              placeholder="比如：腿酸、肩紧、腰没事"
+              value={checkin.soreness}
+            />
+          </label>
+          <label>
+            心情/压力
+            <input
+              onChange={(event) => updateCheckin("mood", event.target.value)}
+              placeholder="比如：精神好、压力大、一般"
+              value={checkin.mood}
+            />
+          </label>
+          <label>
+            训练后 RPE
+            <input
+              onChange={(event) => updateCheckin("rpe", event.target.value)}
+              placeholder="1-10，可留空"
+              value={checkin.rpe}
+            />
+          </label>
+          <label className="wideField">
+            备注
+            <textarea
+              onChange={(event) => updateCheckin("notes", event.target.value)}
+              placeholder="动作、重量、体感、食欲、睡前状态，都可以写。"
+              value={checkin.notes}
+            />
+          </label>
+        </div>
+        <button className="secondaryButton memoryButton" onClick={saveCheckin} type="button">
+          保存到教练记忆
+        </button>
+        {checkins.length ? (
+          <div className="memoryList">
+            <span>最近记忆</span>
+            {checkins.slice(0, 3).map((entry) => (
+              <p key={entry.id}>
+                {new Date(entry.date).toLocaleDateString("zh-CN")} -{" "}
+                {[entry.trainingIntent, entry.food, entry.soreness, entry.mood, entry.rpe ? `RPE ${entry.rpe}` : ""]
+                  .filter(Boolean)
+                  .join(" / ")}
+              </p>
+            ))}
+          </div>
+        ) : null}
+      </section>
+
       <section className="panel">
         <div>
-          <p className="eyebrow">Ask Coach</p>
-          <h2>Training question</h2>
+          <p className="eyebrow">问教练</p>
+          <h2>问教练</h2>
         </div>
         <div className="askCoachForm">
           <input
@@ -310,11 +448,11 @@ export default function TodayDashboard() {
                 askCoach();
               }
             }}
-            placeholder="Should I train legs today?"
+            placeholder="今天适合练腿吗？"
             value={coachQuestion}
           />
           <button className="secondaryButton" disabled={askingCoach} onClick={askCoach} type="button">
-            {askingCoach ? "Asking" : "Ask"}
+            {askingCoach ? "思考中" : "提问"}
           </button>
         </div>
         {coachAnswer ? <p className="coachAnswer">{coachAnswer}</p> : null}
@@ -322,28 +460,28 @@ export default function TodayDashboard() {
 
       <section className="panel">
         <div>
-          <p className="eyebrow">Training</p>
-          <h2>{data.today.readiness} day</h2>
+          <p className="eyebrow">训练</p>
+          <h2>{data.today.readiness}日</h2>
         </div>
         <p>{data.today.recommendation}</p>
       </section>
 
       <section className="panel">
         <div>
-          <p className="eyebrow">7 Days</p>
-          <h2>Trend</h2>
+          <p className="eyebrow">7 天</p>
+          <h2>趋势</h2>
         </div>
         <div className="trendStack">
           <TrendRow
             accent="var(--red)"
-            label="Recovery"
+            label="恢复"
             max={100}
             suffix="%"
             values={trends.map((item) => ({ label: item.label, value: item.recovery_score }))}
           />
           <TrendRow
             accent="var(--amber)"
-            label="Sleep"
+            label="睡眠"
             max={540}
             values={trends.map((item) => ({ label: item.label, value: item.sleep_minutes }))}
           />
@@ -358,16 +496,16 @@ export default function TodayDashboard() {
 
       <section className="panel">
         <div>
-          <p className="eyebrow">Latest</p>
+          <p className="eyebrow">最新</p>
           <h2>{data.profile?.first_name ? `${data.profile.first_name}'s WHOOP` : "WHOOP data"}</h2>
         </div>
         <p>
-          RHR {formatValue(data.today.resting_heart_rate, " bpm")} · Sleep performance{" "}
+          静息心率 {formatValue(data.today.resting_heart_rate, " bpm")} - 睡眠表现{" "}
           {formatValue(data.today.sleep_performance, "%")}
         </p>
         {data.today.latest_workout ? (
           <p>
-            Last workout: {data.today.latest_workout.sport_name ?? "Workout"} · Strain{" "}
+            最近训练：{data.today.latest_workout.sport_name ?? "Workout"} - Strain{" "}
             {data.today.latest_workout.strain?.toFixed(1) ?? "--"}
           </p>
         ) : null}
