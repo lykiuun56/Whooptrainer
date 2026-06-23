@@ -193,6 +193,72 @@ h2 {
   line-height: 1.55;
 }
 
+.coachPanel {
+  border-color: #3d5b4b;
+}
+
+.coachHeader {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.coachHeader span {
+  flex: 0 0 auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.coachGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.coachGrid span {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.coachGrid ul,
+.coachReasons ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text);
+}
+
+.coachGrid li,
+.coachReasons li {
+  margin: 6px 0;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.coachReasons {
+  margin-top: 14px;
+  color: var(--muted);
+}
+
+.coachReasons summary {
+  cursor: pointer;
+  color: var(--text);
+  font-weight: 800;
+}
+
+.coachReasons ul {
+  margin-top: 10px;
+}
+
 .trendStack {
   display: grid;
   gap: 16px;

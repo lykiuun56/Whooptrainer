@@ -33,6 +33,14 @@ type TodayResponse = {
       start: string;
     } | null;
   };
+  coach?: {
+    title: string;
+    intensity: string;
+    plan: string;
+    focus: string[];
+    avoid: string[];
+    reasons: string[];
+  };
   trends?: TrendDay[];
   error?: string;
 };
@@ -174,6 +182,45 @@ export default function TodayDashboard() {
           </article>
         ))}
       </section>
+
+      {data.coach ? (
+        <section className="panel coachPanel">
+          <div className="coachHeader">
+            <div>
+              <p className="eyebrow">Coach</p>
+              <h2>{data.coach.title}</h2>
+            </div>
+            <span>{data.coach.intensity}</span>
+          </div>
+          <p>{data.coach.plan}</p>
+          <div className="coachGrid">
+            <div>
+              <span>Focus</span>
+              <ul>
+                {data.coach.focus.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <span>Avoid</span>
+              <ul>
+                {data.coach.avoid.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+          <details className="coachReasons">
+            <summary>Why this plan</summary>
+            <ul>
+              {data.coach.reasons.map((reason) => (
+                <li key={reason}>{reason}</li>
+              ))}
+            </ul>
+          </details>
+        </section>
+      ) : null}
 
       <section className="panel">
         <div>

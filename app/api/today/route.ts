@@ -143,6 +143,157 @@ function buildTrends(cycleRecords: Cycle[] = [], recoveryRecords: Recovery[] = [
     });
 }
 
+type Trend = ReturnType<typeof buildTrends>[number];
+
+function average(values: (number | null)[]) {
+  const available = values.filter((value): value is number => value != null);
+
+  if (available.length === 0) {
+    return null;
+  }
+
+  return available.reduce((total, value) => total + value, 0) / available.length;
+}
+
+function trendDirection(values: (number | null)[]) {
+  const available = values.filter((value): value is number => value != null);
+
+  if (available.length < 4) {
+    return "stable";
+  }
+
+  const recent = average(available.slice(-3));
+  const previous = average(available.slice(0, -3));
+
+  if (recent == null || previous == null) {
+    return "stable";
+  }
+
+  const delta = recent - previous;
+
+  if (delta >= 5) return "up";
+  if (delta <= -5) return "down";
+  return "stable";
+}
+
+function coachPlan({
+  level,
+  recoveryScore,
+  sleep,
+  strain,
+  hrv,
+  rhr,
+  trends
+}: {
+  level: string;
+  recoveryScore?: number;
+  sleep: Sleep | null;
+  strain?: number;
+  hrv?: number;
+  rhr?: number;
+  trends: Trend[];
+}) {
+  const sleepTime = sleepMinutes(sleep);
+  const sleepPerformance = sleep?.score?.sleep_performance_percentage;
+  const recoveryDirection = trendDirection(trends.map((item) => item.recovery_score));
+  const strainAverage = average(trends.map((item) => item.strain_score));
+  const sleepAverage = average(trends.map((item) => item.sleep_minutes));
+  const reasons: string[] = [];
+  const avoid: string[] = [];
+  const focus: string[] = [];
+
+  if (recoveryScore != null) reasons.push(`Recovery is ${Math.round(recoveryScore)}%.`);
+  if (sleepTime != null) reasons.push(`Sleep was ${Math.floor(sleepTime / 60)}h ${sleepTime % 60}m.`);
+  if (hrv != null) reasons.push(`HRV is ${Math.round(hrv)} ms.`);
+  if (rhr != null) reasons.push(`RHR is ${Math.round(rhr)} bpm.`);
+  if (strain != null) reasons.push(`Current cycle strain is ${strain.toFixed(1)}.`);
+
+  if (recoveryDirection === "down") {
+    reasons.push("Recovery is trending down over the last week.");
+    avoid.push("max effort sets");
+  }
+
+  if (sleepTime != null && sleepTime < 420) {
+    reasons.push("Sleep was under 7 hours.");
+    avoid.push("high-volume finishers");
+  }
+
+  if (sleepPerformance != null && sleepPerformance < 70) {
+    reasons.push(`Sleep performance is ${Math.round(sleepPerformance)}%.`);
+    avoid.push("late intense cardio");
+  }
+
+  if (strainAverage != null && strainAverage >= 12) {
+    reasons.push("Recent strain load is elevated.");
+    avoid.push("stacking another high-strain day");
+  }
+
+  if (sleepAverage != null && sleepAverage >= 420) {
+    focus.push("keep sleep timing consistent");
+  }
+
+  if (level === "Push") {
+    focus.push("main lift progression", "hard but clean conditioning");
+
+    return {
+      title: "Push with intent",
+      intensity: "RPE 8-9",
+      plan: "Good day for a harder session. Prioritize your main lift or key sport work, then stop before form drops.",
+      focus,
+      avoid: avoid.length ? avoid : ["junk volume after the main work"],
+      reasons
+    };
+  }
+
+  if (level === "Build") {
+    focus.push("moderate strength work", "Zone 2 or accessories");
+
+    return {
+      title: "Build, do not test",
+      intensity: "RPE 7-8",
+      plan: "Train normally, but keep the session controlled. Add quality reps rather than chasing a max.",
+      focus,
+      avoid: avoid.length ? avoid : ["one-rep max attempts", "grinding sets"],
+      reasons
+    };
+  }
+
+  if (level === "Light") {
+    focus.push("technique", "mobility", "easy aerobic work");
+
+    return {
+      title: "Light day",
+      intensity: "RPE 5-6",
+      plan: "Keep training easy and leave the gym feeling better than when you walked in.",
+      focus,
+      avoid: avoid.length ? avoid : ["heavy compounds", "failure sets"],
+      reasons
+    };
+  }
+
+  if (level === "Rest") {
+    focus.push("walking", "mobility", "sleep and hydration");
+
+    return {
+      title: "Recover first",
+      intensity: "Very easy",
+      plan: "Treat today as recovery. If you move, keep it low stress and short.",
+      focus,
+      avoid: avoid.length ? avoid : ["hard training", "high strain targets"],
+      reasons
+    };
+  }
+
+  return {
+    title: "Connect more data",
+    intensity: "Unknown",
+    plan: "Sync fresh WHOOP data to generate a coaching recommendation.",
+    focus,
+    avoid,
+    reasons
+  };
+}
+
 export async function GET() {
   const storedSession = await getWhoopSession();
 
@@ -188,6 +339,16 @@ export async function GET() {
   const latestWorkout = latestByStart(workouts.data.records);
   const recoveryScore = latestRecovery?.score?.recovery_score;
   const level = readiness(recoveryScore);
+  const trends = buildTrends(cycles.data.records, recoveries.data.records, sleeps.data.records);
+  const coach = coachPlan({
+    level,
+    recoveryScore,
+    sleep: latestSleep,
+    strain: latestCycle?.score?.strain,
+    hrv: latestRecovery?.score?.hrv_rmssd_milli,
+    rhr: latestRecovery?.score?.resting_heart_rate,
+    trends
+  });
 
   return NextResponse.json({
     connected: true,
@@ -210,12 +371,13 @@ export async function GET() {
           }
         : null
     },
+    coach,
     raw: {
       latest_cycle: latestCycle,
       latest_recovery: latestRecovery,
       latest_sleep: latestSleep,
       latest_workout: latestWorkout
     },
-    trends: buildTrends(cycles.data.records, recoveries.data.records, sleeps.data.records)
+    trends
   });
 }
